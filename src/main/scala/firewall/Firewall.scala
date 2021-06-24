@@ -45,8 +45,8 @@ class Mac() extends Component {
   io.clear := clear
   val sz      = Reg(Bits(16 bits))
   val state = new StateMachine{
-    val startReading : State = new State with EntryPoint {
-      onEntry{
+    val startReading : State = new StateDelay(1) with EntryPoint {
+      whenIsActive{
         io.clear := True
         fifow.clear()
         bytectr.clear()
@@ -54,21 +54,25 @@ class Mac() extends Component {
         pbuff.startRx()
         sz          := 0
       }
-      whenIsActive{
+      whenCompleted{
         io.clear  := False
         goto(readSizeLow)
       }
     }
-    val readSizeLow     : State = new State {
+    val readSizeLow     : State = new StateDelay(1) {
       whenIsActive{
           sz := B"8'x0" ## io.rx.payload
-          goto(readSizeHigh)
         }
+       whenCompleted {
+         goto(readSizeHigh)
+       }
       }
-    val readSizeHigh    : State = new State {
+    val readSizeHigh    : State = new StateDelay(1) {
       whenIsActive{
           sz := sz | (io.rx.payload ## B"8'x0") 
-          goto(read)
+      }
+      whenCompleted{
+        goto(read)
       }
     }
     val read : State = new State {
@@ -116,7 +120,7 @@ case class PacketMap(mtu: Int) extends Area{
   val end_ip        = start_ip + 3 
   val start_port    = iheader_start + iheader_size
   val end_port      = start_port + 3 
-  val ctr           = U(mtu)
+  val ctr           = UInt(U(mtu).getWidth bits)
   val datastream    = Bits(8 bits) 
   when(ctr === iheader_size_loc){ //TODO: ensure size upcast not downcast
     //TODO: fix, does not account for stream valid being pulled low
@@ -185,7 +189,11 @@ case class PacketBuff() extends Area{
     tx := False
   }
   def connectin(stream : Stream[Bits]){
-    fifo.io.push.haltWhen(!rx) <> stream 
+    //TODO: FIX ADD RX SIGNAL
+    val connect = fifo.io.push 
+    connect.payload := stream.payload
+    connect.valid   := stream.valid
+    stream.ready    := connect.ready
   }
 }
 class FwMem(entries : Int) extends Component {
