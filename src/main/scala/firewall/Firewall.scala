@@ -11,8 +11,6 @@ class Firewall extends Component{
   val dummy = new Dummy()
   mac.io.tx >> dummy.io.tx
   mac.io.rx << dummy.io.rx
-//  mac.io.tx <> io.tx
-//  mac.io.rx <> io.rx
   mac.io.fwentry <> fwmem.io.entry
   mac.io.fwdrop  <> fwmem.io.drop
   mac.io.clear   <> fwmem.io.clear
