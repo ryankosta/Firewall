@@ -193,11 +193,10 @@ case class PacketBuff() extends Area{
     tx := False
   }
   def connectin(stream : Stream[Bits]){
-    //TODO: FIX ADD RX SIGNAL
     val connect = fifo.io.push 
     connect.payload := stream.payload
     connect.valid   := stream.valid
-    stream.ready    := connect.ready
+    stream.ready    := connect.ready & rx
   }
 }
 class FwMem(entries : Int) extends Component {
