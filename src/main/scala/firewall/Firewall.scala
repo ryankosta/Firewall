@@ -203,7 +203,7 @@ class FwMem(entries : Int) extends Component {
     val clear     = in Bool()
   }
   val pktentry = Bits(88 bits)
-  val mem = Mem(Bits(88 bits), entries) //TODO: make bitsize dynamic based on size of FwEntry() 
+  val mem = Mem(Bits(88 bits), entries) init(0) //TODO: make bitsize dynamic based on size of FwEntry() 
   val ctr = Counter(entries)
   mem.write(
     io.writeaddr,
