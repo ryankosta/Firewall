@@ -166,7 +166,7 @@ case class PacketBuff() extends Area{
   val tx = RegInit(False)
   def empty(): Bool = fifo.io.occupancy === 0
   def connectout(stream : Stream[Bits]){
-    fifo.io.pop.haltWhen(!rx) <> stream 
+    fifo.io.pop.haltWhen(!tx) <> stream 
   }
   fifo.io.flush := False //TODO: check if this provides a default val
   def drop():    Unit = {
@@ -185,11 +185,7 @@ case class PacketBuff() extends Area{
     tx := False
   }
   def connectin(stream : Stream[Bits]){
-    val connectto = fifo.io.push.haltWhen(!tx)
-    connectto.payload := stream.payload
-    connectto.valid   := stream.valid
-    stream.ready      := connectto.ready
-
+    fifo.io.push.haltWhen(!rx) <> stream 
   }
 }
 class FwMem(entries : Int) extends Component {
