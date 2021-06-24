@@ -47,7 +47,7 @@ class Mac() extends Component {
   val state = new StateMachine{
     val startReading : State = new StateDelay(1) with EntryPoint {
       whenIsActive{
-        io.clear := True
+        clear := True
         fifow.clear()
         bytectr.clear()
         pktread     := False
@@ -55,12 +55,12 @@ class Mac() extends Component {
         sz          := 0
       }
       whenCompleted{
-        io.clear  := False
         goto(readSizeLow)
       }
     }
     val readSizeLow     : State = new StateDelay(1) {
       whenIsActive{
+          clear := False
           sz := B"8'x0" ## io.rx.payload
         }
        whenCompleted {
