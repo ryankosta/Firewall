@@ -145,7 +145,6 @@ case class Fifowatch() extends Area {
     pmap.connectCounter(bytectr,data)
   }
 
-  /*TODO: set maps based on 2+ mac + internet packet not just internet packet*/
   def isip(bytectr    : UInt):  Bool = bytectr >= pmap.start_ip && bytectr <= pmap.end_ip
   def isproto(bytectr : UInt):  Bool =  bytectr === pmap.start_proto 
   def isport(bytectr  : UInt):  Bool = bytectr >= pmap.start_port && bytectr < pmap.end_port
@@ -161,9 +160,6 @@ case class Fifowatch() extends Area {
     }
   }
 }
-/*TODO TODO TODO: define PacketBuff as implicit area
- * make as part of Mac
- */
 case class PacketBuff() extends Area{ 
                                         
   val fifo = new StreamFifo(
