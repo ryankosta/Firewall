@@ -9,7 +9,7 @@ class Firewall extends Component{
   val mac = new Mac()
   val fwmem = new FwMem(10)
   val dummy = new Dummy()
-  mac.io.tx << dummy.io.tx
+  mac.io.tx >> dummy.io.tx
   mac.io.rx << dummy.io.rx
 //  mac.io.tx <> io.tx
 //  mac.io.rx <> io.rx
@@ -166,7 +166,7 @@ case class PacketBuff() extends Area{
   val tx = RegInit(False)
   def empty(): Bool = fifo.io.occupancy === 0
   def connectout(stream : Stream[Bits]){
-    fifo.io.push.haltWhen(!rx) << stream 
+    fifo.io.pop.haltWhen(!rx) <> stream 
   }
   fifo.io.flush := False //TODO: check if this provides a default val
   def drop():    Unit = {
@@ -185,7 +185,11 @@ case class PacketBuff() extends Area{
     tx := False
   }
   def connectin(stream : Stream[Bits]){
-    fifo.io.pop.haltWhen(!tx) >> stream 
+    val connectto = fifo.io.push.haltWhen(!tx)
+    connectto.payload := stream.payload
+    connectto.valid   := stream.valid
+    stream.ready      := connectto.ready
+
   }
 }
 class FwMem(entries : Int) extends Component {
