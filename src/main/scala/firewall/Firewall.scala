@@ -86,19 +86,23 @@ class Mac() extends Component {
           pktread := True
           pbuff.stopRx()
           when(io.fwdrop.valid){ //wait till fw data present until tx
-            goto(tx)
+            goto(startTx)
           }
         }
       }
     }
+    val startTx : State = new State {
+      whenIsActive{
+          when(io.fwdrop.payload){
+            pbuff.drop()
+            goto(startReading)
+          }.otherwise{
+            pbuff.startTx()
+            goto(tx)
+          }
+     }
+    }
     val tx    : State = new State {
-      onEntry{
-        when(io.fwdrop.payload){
-          pbuff.drop()
-          goto(startReading)
-        }
-        pbuff.startTx()
-      }
       whenIsActive{
         when(pbuff.empty()){
           pbuff.stopTx()
