@@ -28,7 +28,7 @@ class Mac() extends Component {
   val io = new Bundle {
     val rx      = slave  Stream(Bits(8 bits))
     val tx      = master Stream(Bits(8 bits))
-    val fwentry = master Flow(Bits(88 bits)) 
+    val fwentry = master Flow(Bits(104 bits)) 
     val fwdrop  = slave  Flow(Bool()) 
     val clear   = out    Bool()
   }
@@ -38,6 +38,9 @@ class Mac() extends Component {
   val pbuff   = PacketBuff()
   pbuff.connectin(io.rx)
   pbuff.connectout(io.tx)
+  io.fwentry.payload := fifow.getEntry()
+  io.fwentry.valid   := fifow.isReady()
+
   val pktread = RegInit(False) 
   val clear   = RegInit(True)
   io.clear := clear
@@ -114,7 +117,7 @@ class Mac() extends Component {
 case class PacketMap(mtu: Int) extends Area{
   val mac_size      = 22
   val iheader_start = mac_size + 2 //accounts for 2 size bytes sent
-  val iheader_size  = RegInit(UInt(4 bits))
+  val iheader_size  = RegInit(U"4'h0")
   val iheader_size_loc = iheader_start 
   val start_proto   = iheader_start + 9 //8 or 9?
   val end_proto     = start_proto 
@@ -130,15 +133,16 @@ case class PacketMap(mtu: Int) extends Area{
   }
   def connectCounter(bytectr : UInt, data : Bits): Unit ={
     ctr := bytectr 
-    data := datastream
+    datastream := data
   }
 
 }
 case class Fifowatch() extends Area {
   
-  val entry = Vec(Reg(Bits(8 bits)),11) 
+  val entry = Vec(Reg(Bits(8 bits)),13) 
   val posctr = Counter(0, 10)
   val pmap   = PacketMap(1500)
+  def getEntry(): Bits =  entry.asBits
   def pmapConnect(bytectr : UInt,data : Bits){ //TODO: Fix nested fxn
     pmap.connectCounter(bytectr,data)
   }
@@ -196,14 +200,14 @@ case class PacketBuff() extends Area{
 class FwMem(entries : Int) extends Component {
   val io = new Bundle {
     val writeaddr = in UInt(U(entries).getWidth bits) 
-    val data      = in Bits(88 bits)
+    val data      = in Bits(104 bits)
     val writeen   = in Bool()
-    val entry     = slave Flow(Bits(88 bits))
+    val entry     = slave Flow(Bits(104 bits))
     val drop      = master Flow(Bool())
     val clear     = in Bool()
   }
-  val pktentry = Bits(88 bits)
-  val mem = Mem(Bits(88 bits), entries) init(Seq.fill(entries)(0)) //TODO: make bitsize dynamic based on size of FwEntry() 
+  val pktentry = Bits(104 bits)
+  val mem = Mem(Bits(104 bits), entries) init(Seq.fill(entries)(0)) //TODO: make bitsize dynamic based on size of FwEntry() 
   val ctr = Counter(entries)
   mem.write(
     io.writeaddr,
@@ -238,6 +242,7 @@ case class FwEntry() extends Bundle {
   val ip_src    = Bits(32 bits)
   val ip_dst    = Bits(32 bits)
   val proto     = Bits(8 bits)
+  val src_port  = Bits(16 bits)
   val dest_port = Bits(16 bits)
   def ===(that : FwEntry): Bool = this.asBits === that.asBits
 
