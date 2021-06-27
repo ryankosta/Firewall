@@ -134,9 +134,9 @@ class Mac() extends Component {
 }
 
 case class PacketMap(mtu: Int) extends Area{
-  val mac_size         = 22
+  val mac_size         = 14
 
-  val iheader_start    = mac_size + 2 //accounts for 2 size bytes sent
+  val iheader_start    = mac_size
   val iheader_size     = RegInit(U"4'h0")
   val iheader_size_loc = iheader_start 
 
@@ -177,7 +177,7 @@ case class Fifowatch() extends Area {
 
   def isip(bytectr    : UInt):  Bool = bytectr >= pmap.start_ip && bytectr <= pmap.end_ip
   def isproto(bytectr : UInt):  Bool =  bytectr === pmap.start_proto 
-  def isport(bytectr  : UInt):  Bool = bytectr >= pmap.start_port && bytectr < pmap.end_port
+  def isport(bytectr  : UInt):  Bool = bytectr >= pmap.start_port && bytectr <= pmap.end_port
 
   def isMatch(pktentry : Bits): Bool = pktentry === entry.asBits 
 
