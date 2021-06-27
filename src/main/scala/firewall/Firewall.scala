@@ -136,7 +136,7 @@ class Mac() extends Component {
 case class PacketMap(mtu: Int) extends Area{
   val mac_size         = 14
 
-  val iheader_start    = mac_size
+  val iheader_start    = mac_size - 1
   val iheader_size     = RegInit(U"4'h0")
   val iheader_size_loc = iheader_start 
 
@@ -144,9 +144,9 @@ case class PacketMap(mtu: Int) extends Area{
   val end_proto        = start_proto 
 
   val start_ip         = iheader_start + 12 
-  val end_ip           = start_ip + 3 
+  val end_ip           = start_ip + 3 + 4 // next 3 bytes of source plus 4 bytes of dest 
 
-  val start_port       = iheader_start + iheader_size
+  val start_port       = iheader_start + (iheader_size << 2) //multiply by 4 as iheader size is measured in 4 byte chunks
   val end_port         = start_port + 3 
 
   val ctr              = UInt(U(mtu).getWidth bits)
@@ -154,7 +154,7 @@ case class PacketMap(mtu: Int) extends Area{
 
   when(ctr === iheader_size_loc) { //TODO: ensure size upcast not downcast
     //TODO: fix, does not account for stream valid being pulled low
-    iheader_size := U(datastream(7 downto 4))
+    iheader_size := U(datastream(3 downto 0))
   }
 
   def connectCounter(bytectr : UInt, data : Bits): Unit ={
