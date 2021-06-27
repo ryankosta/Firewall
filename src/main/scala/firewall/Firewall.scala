@@ -137,7 +137,7 @@ case class PacketMap(mtu: Int) extends Area{
   val mac_size         = 14
 
   val iheader_start    = mac_size - 1
-  val iheader_size     = RegInit(U"4'h0")
+  val iheader_size     = RegInit(U"4'hF")
   val iheader_size_loc = iheader_start 
 
   val start_proto      = iheader_start + 9 //8 or 9?
