@@ -166,7 +166,7 @@ case class PacketMap(mtu: Int) extends Area{
 case class Fifowatch() extends Area {
   
   val entry  = Vec(Reg(Bits(8 bits)),13) 
-  val posctr = Counter(0, 10)
+  val posctr = Counter(0, 12)
   val pmap   = PacketMap(1500)
 
   def getEntry(): Bits =  entry.asBits
