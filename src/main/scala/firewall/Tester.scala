@@ -78,12 +78,12 @@ class Packet(content: Array[Byte]) {
   var nextbyte = 0
   var sizect   = 0
 
-  var controllast = false
-  var controlin   = false
   var on          = false 
   var txing       = false
+  var done        = false
+  var justdone    = false
 
-  def readin(data: Byte): Boolean = if(nextbyte >= 0) data == content(currbyte) else false 
+  def readin(data: Byte): Boolean =   if(nextbyte < content.length) data == content(currbyte) else false 
 
 
 
@@ -91,12 +91,9 @@ class Packet(content: Array[Byte]) {
     var data = (0).asInstanceOf[Byte]
     if(sizect == 0){
       data = (content.length & 255).asInstanceOf[Byte]
-      println("len low is" + data)
-      println("content len is" + content.length)
       sizect += 1
     } else if(sizect == 1){
       data = ((content.length & (255 << 8)) >>> 8).asInstanceOf[Byte]
-      println("len high is" + data)
       sizect += 1
     } else if(rxvalid()){
       data = content(currbyte) 
@@ -104,35 +101,58 @@ class Packet(content: Array[Byte]) {
     data
   }
 
+  def finish(jdone : Boolean) : Unit = {
+    if(jdone){
+      done = true
+      justdone = false
+    }
+  }
   def turnon() : Unit  = on = true 
   def turnoff() : Unit = on = false 
 
-  def donerx()  : Boolean = nextbyte >= content.length
-  def donetx()  : Boolean = nextbyte < 0 
+  def isdone()  : Boolean = done
 
-  def swapmode() : Unit = txing = !txing 
+  def swapmode() : Unit = {
+    done  = false
+    txing = !txing 
+    currbyte = 0 
+    nextbyte = 0
+    sizect   = 0
+  }
+  def istxing() : Boolean = txing
 
   def rx(ready : Boolean): Unit = {
-    if(!txing){
-      controlin = ready
+    finish(justdone & !txing)
+    if(rxvalid()){
       currbyte  = nextbyte
       if(ready){
-        nextbyte = nextbyte + 1
+        if(currbyte == content.length - 1){
+          justdone = true
+        }
+        else if(sizect > 1) {
+          nextbyte = nextbyte + 1
+        }
       }
     }
   }
-  def rxvalid(): Boolean = !txing && !donerx()  && on 
+  def rxvalid(): Boolean = !txing && !isdone()  && on 
+
+  def txready(): Boolean =  txing && !isdone()  && on 
 
   def tx(valid : Boolean){
-    if(txing){
-      controlin = valid
+    finish(justdone & txing)
+    if(txready()){
       currbyte = nextbyte
-    }
-    if(valid && on){
-      nextbyte = nextbyte - 1
+      if(valid){
+        if(currbyte == content.length - 1){
+          justdone = true
+        }
+        else {
+          nextbyte = nextbyte + 1
+        }
+      }
     }
   }
-  def txready(): Boolean = on && txing && nextbyte >= 0
 }
 
 object Network {
@@ -223,15 +243,17 @@ object FirewallSim {
          packet.tx(dut.io.tx.valid.toBoolean)
          dut.io.tx.ready   #= packet.txready()
 
-         if(packet.donerx()){
-           packet.swapmode()
-         }
-         if(packet.donetx()){
-           packet.turnoff()
-           loop.break;
+         if(packet.isdone()){
+           if(packet.istxing()){
+            packet.turnoff()
+            loop.break;
+           }
+           else {
+            packet.swapmode()
+           }
          }
          if(dut.io.tx.valid.toBoolean && packet.txready()){
-           assert(packet.readin(dut.io.tx.payload.toInt.asInstanceOf[Byte]))
+             assert(packet.readin(dut.io.tx.payload.toInt.asInstanceOf[Byte]))
           }
          }
        }
