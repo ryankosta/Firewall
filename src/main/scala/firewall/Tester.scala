@@ -56,8 +56,10 @@ case class FirewallEntry(){
     entry(3) = unsignedCast(ip(2))
     entry(4) = unsignedCast(ip(3)) 
 
-    entry(9) = (port & -128).asInstanceOf[Byte] //TODO: is this a correct mask 
-    entry(10) = (port & (-128 << 8) >> 8).asInstanceOf[Byte] //this might be an arethmetic shift but it shouldnt make a difference
+
+
+    entry(9) = ((port & (255 << 8)) >>> 8).asInstanceOf[Byte] //this might be an arethmetic shift but it shouldnt make a difference
+    entry(10) = (port & 255).asInstanceOf[Byte] //TODO: is this a correct mask 
   }
 
   def addDest(ip : Array[Int], port: Char): Unit = {
@@ -66,8 +68,9 @@ case class FirewallEntry(){
     entry(7) = unsignedCast(ip(2))
     entry(8) = unsignedCast(ip(3)) 
 
-    entry(11) = (port & -128).asInstanceOf[Byte] //TODO: is this a correct mask 
-    entry(12) = (port & (-128 << 8) >> 8).asInstanceOf[Byte] //this might be an arethmetic shift but it shouldnt make a difference
+
+    entry(11) = ((port & (255 << 8)) >>> 8).asInstanceOf[Byte] //this might be an arethmetic shift but it shouldnt make a difference
+    entry(12) = (port & 255).asInstanceOf[Byte] //TODO: is this a correct mask 
 
   }
 }
@@ -166,6 +169,7 @@ object Network {
     val ssh   = (22).asInstanceOf[Char]
     val http  = (80).asInstanceOf[Char]
     val ssl   = (443).asInstanceOf[Char]
+    def other(num : Int): Char = num.asInstanceOf[Char]
   }
 }
 
@@ -175,7 +179,7 @@ class FirewallTester() extends Component{
     val tx        = master Stream(Bits(8 bits))
     val data      = in     Bits(104 bits) 
     val writeaddr = in     UInt(U(10).getWidth bits) //TODO make 10 dynamic
-    val dvalid    = in     Bool()
+    val writeen   = in     Bool()
   }
   //TODO: remove duplicate code in firewall.scala
   val mac = new Mac()
@@ -190,7 +194,7 @@ class FirewallTester() extends Component{
 
   fwmem.io.writeaddr <> io.writeaddr
   fwmem.io.data      <> io.data
-  fwmem.io.writeen   <> io.dvalid
+  fwmem.io.writeen   <> io.writeen
 
 }
 object FirewallSim {
@@ -211,22 +215,30 @@ object FirewallSim {
       val packet = Packet("/home/rkosta/dev/packets/packet1")
       val entries = new FirewallEntries()
       val entry   = new FirewallEntry()
+      val expectdrop = true
 
       entry.addProto(Network.proto.tcp)
-      entry.addDest(Array(10,0,10,57), Network.port.http)
-      entry.addSrc( Array(10,0,10,23), Network.port.http)
+      entry.addDest(Array(162,159,134,234), Network.port.ssl)
+      entry.addSrc( Array(10,0,10,59), Network.port.other(58760))
 
       entries.addEntry(entry)
 
+      dut.io.tx.ready #= false 
+      dut.io.rx.valid #= false 
+
+      for(wait <- 1 to 5){
+        dut.clockDomain.waitRisingEdge()
+      }
 
       while(!entries.done()){
-        dut.clockDomain.waitRisingEdge()
-
-        dut.io.dvalid #= true 
+        dut.io.writeen #= true 
         dut.io.data   #= entries.readData()
         dut.io.writeaddr   #= entries.readAddr()
+
+
+        dut.clockDomain.waitRisingEdge()
       }
-      dut.io.dvalid #= false 
+      dut.io.writeen #= false 
 
       packet.turnon()
 
@@ -244,7 +256,14 @@ object FirewallSim {
          dut.io.tx.ready   #= packet.txready()
 
          if(packet.isdone()){
-           if(packet.istxing()){
+           if(expectdrop){
+             dut.clockDomain.waitRisingEdge()
+             assert(!dut.io.tx.valid.toBoolean)
+             if(dut.io.rx.ready.toBoolean){
+               loop.break;
+             }
+           }
+           else if(packet.istxing()){
             packet.turnoff()
             loop.break;
            }
