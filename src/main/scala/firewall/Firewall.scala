@@ -140,7 +140,7 @@ class Mac() extends Component {
 case class PacketMap(mtu: Int) extends Area{
   val mac_size         = 14
 
-  val iheader_start    = mac_size - 1
+  val iheader_start    = mac_size 
   val iheader_size     = RegInit(U"4'hF")
   val iheader_size_loc = iheader_start 
 
