@@ -76,6 +76,7 @@ case class FirewallEntry(){
 class Packet(content: Array[Byte]) {
   var currbyte = 0 //TODO: should be negative 1?
   var nextbyte = 0
+  var sizect   = 0
 
   var controllast = false
   var controlin   = false
@@ -84,9 +85,20 @@ class Packet(content: Array[Byte]) {
 
   def readin(data: Byte): Boolean = if(nextbyte >= 0) data == content(currbyte) else false 
 
+
+
   def readout():  Byte ={
     var data = (0).asInstanceOf[Byte]
-    if(rxvalid()){
+    if(sizect == 0){
+      data = (content.length & 255).asInstanceOf[Byte]
+      println("len low is" + data)
+      println("content len is" + content.length)
+      sizect += 1
+    } else if(sizect == 1){
+      data = ((content.length & (255 << 8)) >>> 8).asInstanceOf[Byte]
+      println("len high is" + data)
+      sizect += 1
+    } else if(rxvalid()){
       data = content(currbyte) 
     }
     data
