@@ -72,22 +72,22 @@ class Mac() extends Component {
       }
     }
 
-    val readSizeLow     : State = new StateDelay(1) {
+    val readSizeLow     : State = new State {
       whenIsActive{
+        when(io.rx.valid){
           clear := False
           sz := B"8'x0" ## io.rx.payload
+          goto(readSizeHigh)
         }
-       whenCompleted {
-         goto(readSizeHigh)
        }
     }
 
-    val readSizeHigh    : State = new StateDelay(1) {
+    val readSizeHigh    : State = new State {
       whenIsActive{
+        when(io.rx.valid){
           sz := sz | (io.rx.payload ## B"8'x0") 
-      }
-      whenCompleted{
-        goto(read)
+          goto(read)
+        }
       }
     }
 
