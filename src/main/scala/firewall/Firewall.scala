@@ -146,7 +146,7 @@ case class PacketMap(mtu: Int) extends Area{
   val start_ip         = iheader_start + 12 
   val end_ip           = start_ip + 3 + 4 // next 3 bytes of source plus 4 bytes of dest 
 
-  val start_port       = iheader_start + (iheader_size << 2) //multiply by 4 as iheader size is measured in 4 byte chunks
+  val start_port       = U(iheader_start) +^ (iheader_size << 2) //multiply by 4 as iheader size is measured in 4 byte chunks
   val end_port         = start_port + 3 
 
   val ctr              = UInt(U(mtu).getWidth bits)
@@ -166,7 +166,7 @@ case class PacketMap(mtu: Int) extends Area{
 case class Fifowatch() extends Area {
   
   val entry  = Vec(Reg(Bits(8 bits)),13) 
-  val posctr = Counter(0, 12)
+  val posctr = Counter(0, 13)
   val pmap   = PacketMap(1500)
 
   def getEntry(): Bits =  entry.asBits
@@ -254,7 +254,7 @@ class FwMem(entries : Int) extends Component {
 
   val pktentry = Bits(104 bits)
   val mem      = Mem(Bits(104 bits), entries) init(Seq.fill(entries)(0)) //TODO: make bitsize dynamic based on size of FwEntry() 
-  val ctr      = Counter(entries)
+  val ctr      = Counter(0, entries)
 
   mem.write(
     io.writeaddr,
@@ -262,7 +262,8 @@ class FwMem(entries : Int) extends Component {
     io.writeen
   )
 
-  val dvalid = RegNext(ctr === entries)
+  val done   = ctr === entries
+  val dvalid = RegNext(done)
   io.drop.valid := dvalid
 
   val drop = RegInit(False)
@@ -271,7 +272,7 @@ class FwMem(entries : Int) extends Component {
   when(io.clear) {
     ctr.clear()
     drop := False
-  }.elsewhen(io.entry.valid & !dvalid) {
+  }.elsewhen(io.entry.valid & !done ) {
     drop := (pktentry === io.entry.payload) | drop
     ctr.increment()
   }
