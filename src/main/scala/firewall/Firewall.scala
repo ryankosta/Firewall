@@ -64,6 +64,7 @@ class Mac() extends Component {
         fifow.clear()
         bytectr.clear()
         pktread     := False
+        pbuff.stopSample()
         pbuff.startRx()
         sz          := 0
       }
@@ -92,8 +93,11 @@ class Mac() extends Component {
     }
 
     val read : State = new State {
+      onEntry{
+        pbuff.startSample()
+      }
       whenIsActive {
-        when(bytectr.value <= U(sz)){
+        when(bytectr.value <(U(sz) - 1)){
           when(io.rx.valid){
             fifow.watch(io.rx.payload,bytectr.value)
             bytectr.increment()
@@ -203,6 +207,7 @@ case class PacketBuff() extends Area{
 
   val rx = RegInit(False)
   val tx = RegInit(False)
+  val sample = RegInit(False)
 
   def empty(): Bool   = fifo.io.occupancy === 0
 
@@ -225,16 +230,25 @@ case class PacketBuff() extends Area{
   def stopTx():  Unit = {
     tx := False
   }
+  def startSample(): Unit ={
+    sample := True
+  }
+  def stopSample(): Unit = {
+    sample := False
+  }
 
   def connectin(stream : Stream[Bits]){
     val connect = fifo.io.push 
 
     connect.payload := stream.payload
-    connect.valid   := stream.valid
+    connect.valid   := stream.valid  & sample 
     stream.ready    := connect.ready & rx
   }
   def connectout(stream : Stream[Bits]){
-    fifo.io.pop.haltWhen(!tx) <> stream 
+    val connect = fifo.io.pop
+    stream.payload  := connect.payload
+    stream.valid    := connect.valid & tx
+    connect.ready   := stream.ready  & tx 
   }
 
 }
